@@ -1,5 +1,6 @@
 import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom"
 import { AppShell } from "./components/layout/AppShell"
+import { FaviconSync } from "./components/layout/FaviconSync"
 import { AuthProvider } from "./context/AuthContext"
 import { AdminDashboardPage } from "./pages/AdminDashboardPage"
 import { AdminProductFormPage } from "./pages/AdminProductFormPage"
@@ -28,6 +29,7 @@ function AdminArea() {
 function App() {
   return (
     <BrowserRouter>
+      <FaviconSync />
       <Routes>
         <Route path="/" element={<PublicCatalogPage />} />
         <Route element={<AdminArea />}>
