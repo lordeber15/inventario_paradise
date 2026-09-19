@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { fetchUsers, resetUserPassword, updateUser, type AdminUserRow } from "../api/users"
 import { ApiError } from "../api/client"
 import { useAuth } from "../context/AuthContext"
+import { ResetPasswordModal } from "../components/users/ResetPasswordModal"
 
 type Status = "loading" | "ready" | "error"
 
@@ -16,6 +17,7 @@ export function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUserRow[]>([])
   const [status, setStatus] = useState<Status>("loading")
   const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null)
+  const [resetTarget, setResetTarget] = useState<AdminUserRow | null>(null)
 
   async function load() {
     setStatus("loading")
@@ -54,19 +56,14 @@ export function AdminUsersPage() {
     }
   }
 
-  async function handleResetPassword(target: AdminUserRow) {
-    const newPassword = window.prompt(`Nueva contraseña para "${target.username}" (mínimo 8 caracteres):`)
-    if (!newPassword) return
+  function handleResetPassword(target: AdminUserRow) {
     setRowError(null)
-    try {
-      await resetUserPassword(target.id, newPassword)
-      window.alert("Contraseña actualizada.")
-    } catch (err) {
-      setRowError({
-        id: target.id,
-        message: err instanceof ApiError ? err.message : "No se pudo restablecer la contraseña.",
-      })
-    }
+    setResetTarget(target)
+  }
+
+  async function handleConfirmResetPassword(newPassword: string) {
+    if (!resetTarget) return
+    await resetUserPassword(resetTarget.id, newPassword)
   }
 
   return (
@@ -141,7 +138,7 @@ export function AdminUsersPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => void handleResetPassword(row)}
+                    onClick={() => handleResetPassword(row)}
                     className="flex-1 rounded-lg border border-line py-1.5 font-medium text-ink"
                   >
                     Restablecer clave
@@ -212,7 +209,7 @@ export function AdminUsersPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => void handleResetPassword(row)}
+                          onClick={() => handleResetPassword(row)}
                           className="rounded-lg border border-line px-3 py-1.5 font-medium text-ink"
                         >
                           Restablecer clave
@@ -232,6 +229,12 @@ export function AdminUsersPage() {
         </div>
         </>
       )}
+
+      <ResetPasswordModal
+        user={resetTarget}
+        onClose={() => setResetTarget(null)}
+        onConfirm={handleConfirmResetPassword}
+      />
     </div>
   )
 }
