@@ -1,0 +1,109 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"  # 5432 del host ya lo usa otro proyecto; el backend usa la red interna
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-03-12T18-04-18Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    ports:
+      # 9000 solo desde este host: los navegadores llegan a las fotos por
+      # /media/ en el nginx del frontend, no directo a MinIO (mismo criterio
+      # que el puerto del backend, más abajo). 9001 es la consola de MinIO.
+      - "127.0.0.1:9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: quay.io/minio/minio:RELEASE.2025-03-12T18-04-18Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+    entrypoint: ["/bin/sh", "/scripts/init-minio-bucket.sh"]
+    volumes:
+      - ./scripts/init-minio-bucket.sh:/scripts/init-minio-bucket.sh:ro
+
+  backend:
+    build: ./backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_SECURE: "false"
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES}
+      JWT_REFRESH_TOKEN_EXPIRE_DAYS: ${JWT_REFRESH_TOKEN_EXPIRE_DAYS}
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      # "false" by default: this deployment serves plain HTTP over the LAN.
+      # Set to "true" only once this app sits behind HTTPS (see docs/PROYECTO.md
+      # "Seguridad" — the refresh-token cookie is otherwise sent in cleartext).
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      # Bound to localhost only: real traffic reaches the backend through the
+      # frontend's nginx proxy (service "frontend", port 5173) over the internal
+      # Docker network. Publishing this on all interfaces would let any device on
+      # the LAN hit the backend directly, bypassing nginx and letting it spoof
+      # X-Forwarded-For to defeat rate limiting (see --forwarded-allow-ips in
+      # backend/Dockerfile). Still reachable from this host via curl/tools.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - clip_model_cache:/home/appuser/.cache/huggingface
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: /api
+    ports:
+      - "5173:80"
+    depends_on:
+      # nginx resuelve el hostname de cada upstream una sola vez al arrancar, así
+      # que necesita a los dos levantados y hay que reiniciarlo junto con ellos
+      # (ver docs/PROYECTO.md, "Operación").
+      - backend
+      - minio
+
+volumes:
+  postgres_data:
+  minio_data:
+  clip_model_cache:

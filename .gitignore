@@ -1,0 +1,45 @@
+# Environment
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node
+node_modules/
+dist/
+.vite/
+
+# Playwright
+e2e/test-results/
+e2e/playwright-report/
+e2e/blob-report/
+e2e/playwright/.auth/
+
+# ML model cache (downloaded at runtime, not committed)
+backend/.cache/
+
+# OS / editors
+.DS_Store
+*.swp
+
+# Docker volumes data if bind-mounted locally
+docker-data/
+.playwright-cli/
+
+
+docs
+e2e
+test-results
+.playwright-cli
+.claude
+.agents
+.env.example
+skills-lock.json

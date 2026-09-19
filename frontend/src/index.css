@@ -1,0 +1,235 @@
+@import "tailwindcss";
+
+/* Palette: porcelain, terracotta and espresso — the warm boutique palette of
+   the Stitch "Paradise Boutique" design, taken as-is rather than re-tuned:
+   measured with the same formula check-contrast.mjs uses, its two accents
+   already clear 6:1 on the page, so nothing needed darkening. The one value
+   that did not survive is its `outline` (#857370, 4.27:1) — ink-soft comes
+   from its `on-surface-variant` instead, which reads at 8.9:1.
+
+   Three warm reds with three jobs, as before: accent is dark enough to be
+   read as small text, accent-muted only has to stand off its own track
+   (3:1, non-text), and accent-soft is a background that text sits on.
+
+   Every value below is measured, not eyeballed (npm run check:contrast):
+   4.5:1 minimum for small text, which every colour here is used for.
+   paper (the page) and surface (a card) are now almost the same value
+   (1.05:1) — the card is separated from the page by its hairline and its
+   shadow, not by tone. That is why `inset` exists: the sunken hollow inside
+   a card (inputs, selects, the photo letterbox) used to borrow `paper`, and
+   with the page this close to white it would have vanished. inset is one
+   deliberate step down (1.17:1 against a card) and is used for nothing else.
+
+   Each token carries both of its values via light-dark(), which resolves
+   against the element's own `color-scheme` — so the theme switch below only
+   has to change one property, and every colour follows. This replaced a
+   second copy of the palette inside a prefers-color-scheme media query: with
+   two blocks, a manual override needed a third. Verified that light-dark()
+   survives inside color-mix(), which is what Tailwind emits for opacity
+   modifiers (bg-paper/95) and what StockBadge uses for its tint. */
+@theme {
+  --color-paper: light-dark(#fff8f7, #1c1412);
+  --color-surface: light-dark(#ffffff, #261c19);
+  --color-inset: light-dark(#f6ebeb, #30241f);
+  --color-ink: light-dark(#1f1a1a, #f7ece8);
+  --color-ink-soft: light-dark(#534340, #cdb8b1);
+  --color-line: light-dark(#ebe0e0, #3f2f2a);
+  --color-accent: light-dark(#8c4d42, #f2a898);
+  --color-accent-muted: light-dark(#a8635a, #f2a898);
+  --color-accent-soft: light-dark(#ffdad4, #3d2823);
+  --color-stock-good: light-dark(#4b6f56, #7fc496);
+  --color-stock-low: light-dark(#875e1c, #e6b96a);
+  --color-stock-out: light-dark(#ac424f, #e8867d);
+
+  --color-backdrop: light-dark(rgb(31 26 26 / 0.45), rgb(10 6 8 / 0.6));
+  --color-card-shadow: light-dark(rgb(31 26 26 / 0.07), rgb(0 0 0 / 0.35));
+
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "Figtree", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* The theme switch. With no explicit choice the app follows the OS, which is
+   what `light dark` means — so a visitor who never touches the switch keeps
+   the behaviour the app always had. `data-theme` is set by the inline script
+   in index.html before first paint (see the comment there) and by
+   src/theme.ts afterwards; it is the only thing the switch changes. */
+:root {
+  color-scheme: light dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* "Ver catálogo" in the hero is a plain in-page anchor; the global
+   reduced-motion switch below already forces scroll-behavior back to auto. */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The display serif. It started out reserved for the wordmark alone; the
+   public catalogue's redesign extended it, deliberately, to the editorial
+   voice of that one page — the hero title, section titles and the product
+   name on a card. The panel and the register still use it only for the
+   wordmark and the change amount on the ticket. It sets no weight: the
+   wordmark wants 600, a 14px card title wants 500 (Fraunces loads with its
+   full optical-size axis, so it holds up that small), and each use says so
+   with its own font-* class. */
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* The "hang tag" shape used by StockBadge: a price-tag silhouette (pointed
+   left edge) with a real punched hole near the point, like a boutique gift
+   tag on a string. Two things make this the signature shape rather than a
+   decoration bolted onto a generic badge:
+   - clip-path draws the pointed silhouette itself (works at any width, since
+     the notch depth is a fixed px value and the point sits at the box's own
+     left edge — text length never breaks the shape).
+   - The hole is a genuine transparent cutout via mask-image, not a
+     same-colored circle drawn on top — a same-colored circle would need to
+     match whichever background happens to sit behind the badge (white cards,
+     the paper page, the modal surface, the darker "inactive row" tint), and
+     go wrong the moment one of those doesn't match exactly. A real hole has
+     no such dependency: it shows through to whatever is actually there. */
+.tag-badge {
+  clip-path: polygon(9px 0, 100% 0, 100% 100%, 9px 100%, 0 50%);
+  -webkit-mask-image: radial-gradient(circle 1.75px at 9px 50%, transparent 99%, black 100%);
+  mask-image: radial-gradient(circle 1.75px at 9px 50%, transparent 99%, black 100%);
+}
+
+/* Product modal: native <dialog>, animated via @starting-style so the entry/exit
+   transition runs without JS. Only transform/opacity animate (compositor-only
+   properties), and everything is gated behind prefers-reduced-motion.
+   margin: auto restores the browser's own centering trick for a modal
+   <dialog> (position: fixed + inset: 0 + margin: auto) — Tailwind's preflight
+   resets `margin` to 0 on every element, `<dialog>` included, which otherwise
+   collapses it to the top-left corner instead of the middle of the screen. */
+.product-dialog {
+  margin: auto;
+  opacity: 0;
+  transform: scale(0.96) translateY(8px);
+  transition:
+    opacity 180ms ease-out,
+    transform 180ms ease-out,
+    overlay 180ms ease-out allow-discrete,
+    display 180ms ease-out allow-discrete;
+}
+
+.product-dialog[open] {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+@starting-style {
+  .product-dialog[open] {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+}
+
+.product-dialog::backdrop {
+  background: var(--color-backdrop);
+  opacity: 0;
+  transition:
+    opacity 180ms ease-out,
+    overlay 180ms ease-out allow-discrete,
+    display 180ms ease-out allow-discrete;
+}
+
+.product-dialog[open]::backdrop {
+  opacity: 1;
+}
+
+@starting-style {
+  .product-dialog[open]::backdrop {
+    opacity: 0;
+  }
+}
+
+/* Signature microinteraction: the hang-tag badge swings slightly on hover/
+   press, like it's actually hanging from something — the same shape that
+   already carries the brand identity (see .tag-badge above) does double
+   duty as the one place this app spends its "one real risk" on motion.
+   transform-origin sits at the punched hole, not the element's center, so
+   it reads as a tag pivoting on its string rather than the whole chip
+   wobbling in place. */
+.tag-badge {
+  transition: transform 150ms ease-out;
+  transform-origin: 9px 50%;
+}
+
+.tag-badge:hover {
+  transform: rotate(-6deg) scale(1.04);
+}
+
+.tag-badge:active {
+  transform: rotate(-2deg) scale(0.97);
+}
+
+/* A new cart line slides/fades in on mount (not on quantity changes, since
+   those re-render the same key rather than mounting a new node) — the only
+   feedback that a scan or search result actually landed in the cart. */
+@keyframes cart-line-in {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+
+.cart-line-in {
+  animation: cart-line-in 200ms ease-out;
+}
+
+/* Generic entrance for transient content: error/success messages, the
+   ticket that replaces the sale form after checkout. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in-up 200ms ease-out;
+}
+
+/* Catalog stagger, limited to the first screenful (see index.tsx callers) —
+   animating all 200 products on load would just be 200 simultaneous
+   reflows disguised as a nicety. */
+@keyframes catalog-item-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.catalog-item-in {
+  animation: catalog-item-in 300ms ease-out backwards;
+}
+
+/* Global switch: every animation/transition on the page collapses to
+   effectively instant, not just the dialog's. Doing it here once means new
+   motion (added above, or later) never needs its own reduced-motion query. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
