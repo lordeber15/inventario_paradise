@@ -44,10 +44,10 @@ COPY --chown=appuser:appuser . .
 
 USER appuser
 
-EXPOSE 8000
+EXPOSE 8012
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:8000/api/health || exit 1
+    CMD curl -f http://localhost:8012/api/health || exit 1
 
 # --forwarded-allow-ips='*': safe here because the backend is never reachable except
 # through the bundled nginx (internal Docker network) or via 127.0.0.1 on the host
