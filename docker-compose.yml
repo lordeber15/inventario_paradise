@@ -83,7 +83,7 @@ services:
       # the LAN hit the backend directly, bypassing nginx and letting it spoof
       # X-Forwarded-For to defeat rate limiting (see --forwarded-allow-ips in
       # backend/Dockerfile). Still reachable from this host via curl/tools.
-      - "127.0.0.1:8012:8000"
+      - "0.0.0.0:8012:8000"
     volumes:
       - clip_model_cache:/home/appuser/.cache/huggingface
     healthcheck:
