@@ -30,7 +30,7 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         value=refresh_token,
         httponly=True,
         secure=settings.cookie_secure,
-        samesite="strict",
+        samesite=settings.cookie_samesite,
         path=REFRESH_COOKIE_PATH,
         max_age=settings.jwt_refresh_token_expire_days * 24 * 60 * 60,
     )
@@ -96,7 +96,12 @@ async def refresh(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(response: Response) -> None:
-    response.delete_cookie(REFRESH_COOKIE_NAME, path=REFRESH_COOKIE_PATH)
+    response.delete_cookie(
+        REFRESH_COOKIE_NAME,
+        path=REFRESH_COOKIE_PATH,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+    )
 
 
 @router.get("/me", response_model=UserOut)

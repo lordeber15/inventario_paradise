@@ -68,6 +68,13 @@ class Settings(BaseSettings):
 
     # Cookies (refresh token). Enable when served over HTTPS (e.g. behind a TLS reverse proxy).
     cookie_secure: bool = False
+    # "strict" works when frontend and backend share an origin (this project's
+    # default: nginx proxies /api/ to the backend, so the browser never sees a
+    # cross-site request). Set to "none" if frontend and backend are split
+    # across different domains — the refresh-token cookie otherwise never
+    # reaches the backend on a cross-site fetch. "none" requires cookie_secure
+    # = true (HTTPS on both sides); browsers reject SameSite=None without Secure.
+    cookie_samesite: str = "strict"
 
     @property
     def cors_origins_list(self) -> list[str]:

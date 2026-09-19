@@ -67,6 +67,10 @@ services:
       # Set to "true" only once this app sits behind HTTPS (see docs/PROYECTO.md
       # "Seguridad" — the refresh-token cookie is otherwise sent in cleartext).
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      # "strict" by default (frontend and backend share an origin via nginx).
+      # Set to "none" (requires COOKIE_SECURE=true) when frontend and backend
+      # are split across different domains.
+      COOKIE_SAMESITE: ${COOKIE_SAMESITE:-strict}
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,7 +97,7 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: /api
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
     ports:
       - "5173:80"
     depends_on:
